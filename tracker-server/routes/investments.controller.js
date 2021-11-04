@@ -1,4 +1,4 @@
-import Investment from "../models/investment.model.js"
+import Investment from '../models/investment.model.js'
 
 export const getInvestments = async (req, res) => {
   try {
@@ -17,6 +17,6 @@ export const createInvestment = (req, res) => {
   try {
 
   } catch(error) {
-    
+
   }
 }
