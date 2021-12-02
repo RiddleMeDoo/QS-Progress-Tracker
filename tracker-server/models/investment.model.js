@@ -4,7 +4,7 @@ const investmentSchema = mongoose.Schema({
   playerId: Number,
   timestamp: {
     type: Date,
-    default: new Date()
+    default: new Date(new Date().toDateString())
   },
   partner: Number,
   numPartners: Number,

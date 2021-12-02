@@ -1,6 +1,7 @@
 import Investment from '../models/investment.model.js'
 import Player from '../models/player.model.js'
 import axios from 'axios'
+import {endOfDay, startOfDay} from 'date-fns'
 
 export const getInvestments = async (req, res) => {
   try {
@@ -22,31 +23,59 @@ export const createInvestment = async (req, res) => {
   const playerKey = req.body.APIKey
   try {
     //Check for player in database
-    const result = await Player.findOne({key: playerKey}).select(['playerId']).lean().exec()
+    const playerId = await Player.findOne({key: playerKey}).select(['playerId']).lean().exec()
     .then(doc => {
       if(doc === null) {
-        return {status: 404, msg: {error: 'Player not found.'}}
+        return -1
       }
-      else return {status: 200, msg: {message: 'Created investment'}}
+      else return doc.playerId
     })
     .catch(err => ({status: 500, msg: {error: err}}))
-    if (result.status !== 200) {
-      res.status(result.status).json(result.msg)
+    if (playerId < 0) {
+      res.status(404).json({error: 'Player not found.'})
       return
     }
     //Check if an investment record already exists for the day
+    //Get latest investment record
+    const hasInvestment = await Investment.find({
+      playerId: playerId, 
+      timestamp: {
+        $gte: startOfDay(new Date()),
+        $lte: endOfDay(new Date())
+      }
+    }).lean().exec()
+    .then(result => Array.isArray(result) && result.length > 0)
+    if(hasInvestment) {
+      res.status(400).json({error:'Record already exists for today'})
+      return
+    }
     
 
     //Get required player info from the game with the key
-    const playerInfo = axios.get(`https://queslar.com/api/player/full/${playerKey}`)
+    axios.get(`https://queslar.com/api/player/full/${playerKey}`)
     .then(async returnedInfo => {
       //Make new investment record
-      const newPlayer = new Player({
-        key: playerKey,
-        playerId: returnedInfo.data.player.id,
-        name: returnedInfo.data.player.username
+      const newInvestment = new Investment({
+        playerId: playerId,
+        partner: 0,
+        numPartners: 0,
+        fighter: 0,
+        numFighters: 0,
+        cave: 0,
+        house: 0,
+        pet: 0,
+        numPets: 0,
+        equipmentSlot: 0,
+        partnerRelicBoost: 0,
+        battleRelicBoost: 0,
+        homestead: 0,
+        total: {
+          gold: 0,
+          resource: 0,
+          relic: 0
+        }
       })
-      res.status(status).json(msg)
+      res.status(200).json({message: 'Record has been created'})
     })
     .catch(err => {
       console.log('error:', err)
