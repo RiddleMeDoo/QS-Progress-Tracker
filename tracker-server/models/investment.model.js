@@ -21,7 +21,8 @@ const investmentSchema = mongoose.Schema({
   total: {
     gold: Number,
     resource: Number,
-    relic: Number
+    relic: Number,
+    diamond: Number
   }
 })
 

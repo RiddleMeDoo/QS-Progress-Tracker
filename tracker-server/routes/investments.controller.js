@@ -1,7 +1,8 @@
 import Investment from '../models/investment.model.js'
 import Player from '../models/player.model.js'
 import axios from 'axios'
-import {endOfDay, startOfDay} from 'date-fns'
+import endOfDay from 'date-fns/endOfDay'
+
 
 export const getInvestments = async (req, res) => {
   try {
@@ -16,7 +17,7 @@ export const getInvestments = async (req, res) => {
 }
 
 export const getLatestInvestment = async (req, res) => {
-  res.status(500).json({error: "Not implemented yet"})
+  res.status(500).json({error: 'Not implemented yet'})
 }
 
 export const createInvestment = async (req, res) => {
@@ -57,14 +58,14 @@ export const createInvestment = async (req, res) => {
       //Make new investment record
       const newInvestment = new Investment({
         playerId: playerId,
-        partner: 0,
-        numPartners: 0,
-        fighter: 0,
-        numFighters: 0,
-        cave: 0,
+        partner: returnedInfo.partners.reduce(getPartnerInvestment, 0),
+        numPartners: returnedInfo.partners.length,
+        fighter: returnedInfo.fighters.reduce(getFighterInvestment, 0),
+        numFighters: returnedInfo.fighters.length,
+        cave: getCaveInvestment(returnedInfo.fighterCaveTools),
         house: 0,
         pet: 0,
-        numPets: 0,
+        numPets: returnedInfo.pets.length,
         equipmentSlot: 0,
         partnerRelicBoost: 0,
         battleRelicBoost: 0,
@@ -75,7 +76,7 @@ export const createInvestment = async (req, res) => {
           relic: 0
         }
       })
-      res.status(200).json({message: 'Record has been created'})
+      res.status(200).json(newInvestment)
     })
     .catch(err => {
       console.log('error:', err)
@@ -84,4 +85,44 @@ export const createInvestment = async (req, res) => {
   } catch(error) {
     res.status(500).json({error: error})
   }
+}
+
+
+
+
+// Helper functions
+const getPartnerInvestment = (totalInvestment, partner) => {
+  /*
+  * Returns the total amount of gold invested into a given partner,
+  * adding onto the total investment amount
+  */
+  const speed = partner.speed 
+  const intelligence = partner.intelligence
+  let investment = 0
+  //Calculations are made with 'sum of consecutive numbers'
+  investment += Math.round(10000 * (speed * (speed + 1) / 2))
+  investment += Math.round(10000 * (intelligence * (intelligence + 1) / 2))
+  return totalInvestment + investment
+}
+
+const getFighterInvestment = (investment, fighter) => {
+  /*
+  * Returns the total amount of gold invested into a given fighter,
+  * adding onto the total investment amount
+  */
+  const stats = ['health', 'damage', 'hit', 'dodge', 'defense', 'crit_damage']
+  return investment + stats.reduce(
+    (prev, stat) => prev + Math.round(10000 * (fighter[stat] * (fighter[stat] + 1) / 2)), 
+    0)
+}
+
+const getCaveInvestment = cave => {
+  /**
+   * returns the total number of diamonds invested in the cave
+   */
+  const caveUpgrades = ['archeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife']
+  return caveUpgrades.reduce(
+    (diamonds, tool) => diamonds + caves[tool] * (caves[tool] + 1) / 2,
+     0)
+
 }
