@@ -28,3 +28,15 @@ describe('Users API', () => {
     });
   })
 });
+
+describe('Calculate Investments', function () {
+
+  describe('#getPartnerInvestment()', function () {
+    context('using a preset partner', function() {
+      it('should return _ investment', function() {
+        const partner = {speed: 10, intelligence: 5};
+        expect(getParterInvestment(0, partner)).to.equal(700000)
+      })
+    })
+  })
+})
