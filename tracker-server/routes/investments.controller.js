@@ -1,7 +1,7 @@
 import Investment from '../models/investment.model.js'
 import Player from '../models/player.model.js'
 import axios from 'axios'
-import endOfDay from 'date-fns/endOfDay'
+import endOfDay from 'date-fns/endOfDay/index.js'
 
 
 export const getInvestments = async (req, res) => {
@@ -63,10 +63,10 @@ export const createInvestment = async (req, res) => {
         fighter: returnedInfo.fighters.reduce(getFighterInvestment, 0),
         numFighters: returnedInfo.fighters.length,
         cave: getCaveInvestment(returnedInfo.fighterCaveTools),
-        house: 0,
-        pet: 0,
+        house: getHouseInvestment(returnedInfo.house),
+        pet: returnedInfo.pets.reduce(getPetInvestment, 0),
         numPets: returnedInfo.pets.length,
-        equipmentSlot: 0,
+        equipmentSlot: getEquipmentSlotInvestment(returnedInfo.equipmentSlots),
         partnerRelicBoost: 0,
         battleRelicBoost: 0,
         homestead: 0,
@@ -91,7 +91,7 @@ export const createInvestment = async (req, res) => {
 
 
 // Helper functions
-const getPartnerInvestment = (totalInvestment, partner) => {
+export const getPartnerInvestment = (totalInvestment, partner) => {
   /*
   * Returns the total amount of gold invested into a given partner,
   * adding onto the total investment amount
@@ -116,7 +116,7 @@ const getFighterInvestment = (investment, fighter) => {
     0)
 }
 
-const getCaveInvestment = cave => {
+const getCaveInvestment = caves => {
   /**
    * returns the total number of diamonds invested in the cave
    */
@@ -125,4 +125,82 @@ const getCaveInvestment = cave => {
     (diamonds, tool) => diamonds + caves[tool] * (caves[tool] + 1) / 2,
      0)
 
+}
+
+const getHouseInvestment = houseData => {
+  const houseUpgrades = ["chairs", "stove", "sink", "basket", "pitchfork", "shed", "fountain", "tools", "barrel"]
+  const livingRoom = ["table","candlestick","carpet","couch"]
+  let houseInvestment = houseUpgrades.reduce(
+    (investment, upgrade) => {
+      let total = investment
+      for(let i = 1; i < houseData[upgrade] + 1; i++) {
+        total += 1000 + (1000 * (i - 1)**1.25)
+      }
+      return total
+    }, 0)
+
+  houseInvestment += livingRoom.reduce(
+    (investment, upgrade) => {
+      let total = investment
+      for(let i = 1; i < houseData[upgrade] + 1; i++) {
+        total += 5000000 + (5000000 * (i - 1)**1.25)
+      }
+      return total
+    }, 0)
+  return houseInvestment * 4
+}
+
+const getPetInvestment = (investment, petInfo) => {
+  return investment + (petInfo.farm_strength*(petInfo.farm_strength + 1) / 2 + 
+    petInfo.farm_health * (petInfo.farm_health + 1) / 2 + 
+    petInfo.farm_agility * (petInfo.farm_agility + 1) / 2 + 
+    petInfo.farm_dexterity * (petInfo.farm_dexterity + 1) / 2) * 50000
+}
+
+const getEquipmentSlotInvestment = eqSlots => {
+  eqSlotLevels = [
+    eqSlots.left_hand_level, eqSlots.right_hand_level, 
+    eqSlots.head_level, eqSlots.body_level, 
+    eqSlots.hands_level, eqSlots.legs_level, eqSlots.feet_level
+  ]
+
+  return eqSlotLevels.reduce(
+    (investment, level) => {
+      investment + 250 * ((1 - 1.1**level) / -0.1)
+    }
+  , 0)
+}
+
+export const getRelicInvestment = (level) => {
+  if(level <= 0) return 0
+  let investment, increment, initCost
+  
+  if(level <= 5000) return 10 * (level * (level + 1) / 2)
+  else if(level <= 10000) {
+    investment = 125025000 //Investment at level 5000
+    increment = 30
+    initCost = 50000
+  
+    for(let i = 5; i < Math.round(level/1000) + 1; i++) {
+      const base = level >= (i+1) * 1000 ? 1000 : level % (i * 1000)
+      investment += increment * (base * (base + 1) / 2) + (initCost * base)
+      initCost += increment * 1000
+      increment += 20 //increases every 1k levels
+    }
+  
+  } else { //level > 10k
+    investment = 1050200000 //Investment at level 10,000
+    increment = 130
+    initCost = 400000
+  }
+  
+  for(let i = 10;  i < Math.round(level / 1000) + 1; i++) {
+    const base = level >= (i+1) * 1000 ? 1000 : level % (i * 1000)
+    investment += increment * (base * (base + 1) / 2) + (initCost * base)
+    initCost += increment * 1000
+    //Past 10k, increment also starts to add in consecutive sums (n * (n+1) / 2)
+    increment = (i - 7) * (i - 6) / 2 * 10 + 100
+  }
+  
+  return investment
 }
