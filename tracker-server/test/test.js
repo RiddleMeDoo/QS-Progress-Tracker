@@ -1,6 +1,6 @@
 import supertest from 'supertest';
 import chai from 'chai';
-import { getPartnerInvestment, getRelicInvestment } from '../routes/investments.controller.js';
+import { getCaveInvestment, getFighterInvestment, getPartnerInvestment, getRelicInvestment } from '../routes/investments.controller.js';
 
 const request = supertest('https://jsonplaceholder.typicode.com');
 const assert = chai.assert;
@@ -65,6 +65,37 @@ describe('Calculate Investments', function () {
       it('should handle funky numbers', function () {
         expect(getRelicInvestment(12121)).to.equal(2210311200)
       })
+    })
+  })
+
+  describe('#getFighterInvestment()', function () {
+    let fighter = {
+      health:0, damage:0, hit:0, dodge:0, defense:0, crit_damage:0
+    }
+
+    context('Basic passing tests', function () {
+      it('should return 0', function () {
+        expect(getFighterInvestment(0, fighter)).to.equal(0)
+      })
+      
+      it('should return 60k', function () {
+        fighter = {
+          health:1, damage:1, hit:1, dodge:1, defense:1, crit_damage:1
+        }
+        expect(getFighterInvestment(0, fighter)).to.equal(60000)
+      })
+    })
+
+  })
+
+  describe('#getCaveInvestment', function () {
+    let cave = {'archaeology':0, 'brush':0, 'trowel':0, 'map':0, 'backpack':0, 'torch':0, 'scouting':0, 'spade':0, 'knife':0} 
+    it('should pass the 0 test', function () {
+      expect(getCaveInvestment(cave)).to.equal(0)
+    })
+    it('should pass a basic test', function () {
+      cave = {'archaeology':1, 'brush':1, 'trowel':1, 'map':1, 'backpack':1, 'torch':1, 'scouting':1, 'spade':1, 'knife':1}
+      expect(getCaveInvestment(cave)).to.equal(9)
     })
   })
 })

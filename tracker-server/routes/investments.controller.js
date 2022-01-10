@@ -1,6 +1,7 @@
 import Investment from '../models/investment.model.js'
 import Player from '../models/player.model.js'
 import axios from 'axios'
+import startOfDay from 'date-fns/startOfDay/index.js'
 import endOfDay from 'date-fns/endOfDay/index.js'
 
 
@@ -21,6 +22,7 @@ export const getLatestInvestment = async (req, res) => {
 }
 
 export const createInvestment = async (req, res) => {
+  console.log('POST createInvestment')
   const playerKey = req.body.APIKey
   try {
     //Check for player in database
@@ -54,35 +56,62 @@ export const createInvestment = async (req, res) => {
 
     //Get required player info from the game with the key
     axios.get(`https://queslar.com/api/player/full/${playerKey}`)
-    .then(async returnedInfo => {
+    .then(async response => {
       //Make new investment record
-      const newInvestment = new Investment({
+      const returnedInfo = response.data
+      const record = {
         playerId: playerId,
-        partner: returnedInfo.partners.reduce(getPartnerInvestment, 0),
+        partner: returnedInfo.partners.reduce(getPartnerInvestment, 0) + returnedInfo.currency.shattered_partner_gold,
         numPartners: returnedInfo.partners.length,
-        fighter: returnedInfo.fighters.reduce(getFighterInvestment, 0),
+        fighter: returnedInfo.fighters.reduce(getFighterInvestment, 0) + returnedInfo.currency.shattered_fighter_gold,
         numFighters: returnedInfo.fighters.length,
         cave: getCaveInvestment(returnedInfo.fighterCaveTools),
         house: getHouseInvestment(returnedInfo.house),
         pet: returnedInfo.pets.reduce(getPetInvestment, 0),
         numPets: returnedInfo.pets.length,
         equipmentSlot: getEquipmentSlotInvestment(returnedInfo.equipmentSlots),
-        partnerRelicBoost: 0,
-        battleRelicBoost: 0,
-        homestead: 0,
-        total: {
-          gold: 0,
-          resource: 0,
-          relic: 0
+        partnerRelicBoost: ["hunting_boost","mining_boost","woodcutting_boost","stonecarving_boost"].reduce(
+          (investment, boost) => {
+            getRelicInvestment(returnedInfo.boosts[boost]) + investment
+          }, 0) + returnedInfo.currency.shattered_partner_relics,
+        battleRelicBoost: ["critChance", "critDamage", "multistrike", "healing", "defense"].reduce(
+          (investment, boost) => {
+            getRelicInvestment(returnedInfo.boosts[boost]) + investment
+          }, 0) + returnedInfo.currency.shattered_battling_relics,
+        homestead: ['mine_level', 'farm_level', 'logging_level', 'fishing_level'].reduce(
+          (investment, boost) => {
+            getHomesteadInvestment(returnedInfo.playerHomesteadData[boost]) + investment
+          }, 0)
+      }
+      record.total = { // Calculates sum of investment every time it's called
+        get gold() {
+          record.partner + getUnitInvestment(record.numPartners) + record.fighter + getUnitInvestment(record.numFighters) 
+          + record.pet + getUnitInvestment(record.numPets)
+        },
+        get resource() {
+          record.house + record.equipmentSlot + record.homestead
+        },
+        get relic() {
+          record.partnerRelicBoost + record.battleRelicBoost
+        },
+        get diamond() {
+          record.cave
         }
-      })
-      res.status(200).json(newInvestment)
+      }
+      const newInvestment = new Investment(record)
+      try {
+        //await newInvestment.save()
+        res.status(201).json({...newInvestment, message: 'Added new investment record'})
+      } catch(error) {
+        res.status(409).json({message: error.message})
+      }
     })
     .catch(err => {
       console.log('error:', err)
       res.status(400).json({error: 'Invalid player API key'})
     })
   } catch(error) {
+    console.log(error)
     res.status(500).json({error: error})
   }
 }
@@ -105,29 +134,33 @@ export const getPartnerInvestment = (totalInvestment, partner) => {
   return totalInvestment + investment
 }
 
-const getFighterInvestment = (investment, fighter) => {
+export const getFighterInvestment = (investment, fighter) => {
   /*
   * Returns the total amount of gold invested into a given fighter,
   * adding onto the total investment amount
   */
   const stats = ['health', 'damage', 'hit', 'dodge', 'defense', 'crit_damage']
   return investment + stats.reduce(
-    (prev, stat) => prev + Math.round(10000 * (fighter[stat] * (fighter[stat] + 1) / 2)), 
+    (prev, stat) => {
+      if(fighter[stat] < 1) return 0
+      return prev + Math.round(10000 * (fighter[stat] * (fighter[stat] + 1) / 2))
+    }, 
     0)
 }
 
-const getCaveInvestment = caves => {
+export const getCaveInvestment = caves => {
   /**
    * returns the total number of diamonds invested in the cave
    */
-  const caveUpgrades = ['archeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife']
+  const caveUpgrades = ['archaeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife']
   return caveUpgrades.reduce(
-    (diamonds, tool) => diamonds + caves[tool] * (caves[tool] + 1) / 2,
-     0)
+    (diamonds, tool) => {
+      return diamonds + caves[tool] * (caves[tool] + 1) / 2
+    }, 0)
 
 }
 
-const getHouseInvestment = houseData => {
+export const getHouseInvestment = houseData => {
   const houseUpgrades = ["chairs", "stove", "sink", "basket", "pitchfork", "shed", "fountain", "tools", "barrel"]
   const livingRoom = ["table","candlestick","carpet","couch"]
   let houseInvestment = houseUpgrades.reduce(
@@ -150,15 +183,15 @@ const getHouseInvestment = houseData => {
   return houseInvestment * 4
 }
 
-const getPetInvestment = (investment, petInfo) => {
+export const getPetInvestment = (investment, petInfo) => {
   return investment + (petInfo.farm_strength*(petInfo.farm_strength + 1) / 2 + 
     petInfo.farm_health * (petInfo.farm_health + 1) / 2 + 
     petInfo.farm_agility * (petInfo.farm_agility + 1) / 2 + 
     petInfo.farm_dexterity * (petInfo.farm_dexterity + 1) / 2) * 50000
 }
 
-const getEquipmentSlotInvestment = eqSlots => {
-  eqSlotLevels = [
+export const getEquipmentSlotInvestment = eqSlots => {
+  const eqSlotLevels = [
     eqSlots.left_hand_level, eqSlots.right_hand_level, 
     eqSlots.head_level, eqSlots.body_level, 
     eqSlots.hands_level, eqSlots.legs_level, eqSlots.feet_level
@@ -171,7 +204,7 @@ const getEquipmentSlotInvestment = eqSlots => {
   , 0)
 }
 
-export const getRelicInvestment = (level) => {
+export const getRelicInvestment = level => {
   if(level <= 0) return 0
   let investment, increment, initCost
   
@@ -203,4 +236,43 @@ export const getRelicInvestment = (level) => {
   }
   
   return investment
+}
+
+export const getHomesteadInvestment = level => {
+  if(level <= 0) return 0
+
+  if(level <= 1750) {
+    let investment = -1000
+    let increment = 1000
+    let initCost = 0
+
+    for(let i = 0; i < Math.round(level / 250) + 1; i++) {
+      const base = level >= (i + 1) * 250 ? 250 : level % 250
+      investment += increment * (base * (base + 1) / 2) + (initCost * base)
+      initCost += increment * 250
+      increment += 1000 //Increases by 1000 every 250 levels
+    }
+    return investment
+  } else { // Level > 1750 
+    let investment = 4378499000 //Investment at level 1750
+    let increment = 8010
+    let initCost = 7000000
+
+    for(let i = 7; i < Math.round(level / 250) + 1; i++) {
+      const base = level >= (i +1) ? 250 : level % 250
+      investment += increment * (base * (base + 1) / 2) + (initCost * base)
+      initCost += increment * 250
+      //Past 1750, increment also starts to add in consecutive sums (n * (n+1) / 2)
+      increment = ((i - 5) * (i - 4) / 2) * 10 + (i + 2) * 1000 
+    }
+    return investment
+  }
+}
+
+export const getUnitInvestment = num => {
+  /**
+   * Returns the total amount of gold invested into buying num units.
+   * Units can be pets, partners, or fighters.
+   */
+  return parseInt('1'.repeat(num) + '0000')
 }
