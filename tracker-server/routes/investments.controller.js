@@ -96,7 +96,7 @@ export const createInvestment = async (req, res) => {
       }
       const newInvestment = new Investment(record)
       try {
-        //await newInvestment.save()
+        await newInvestment.save()
         res.status(201).json({...newInvestment, message: 'Added new investment record'})
       } catch(error) {
         res.status(409).json({message: error.message})
