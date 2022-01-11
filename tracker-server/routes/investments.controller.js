@@ -67,36 +67,32 @@ export const createInvestment = async (req, res) => {
         numFighters: returnedInfo.fighters.length,
         cave: getCaveInvestment(returnedInfo.fighterCaveTools),
         house: getHouseInvestment(returnedInfo.house),
-        pet: returnedInfo.pets.reduce(getPetInvestment, 0),
+        pet: getPetInvestment(returnedInfo.playerPetsData),
         numPets: returnedInfo.pets.length,
         equipmentSlot: getEquipmentSlotInvestment(returnedInfo.equipmentSlots),
         partnerRelicBoost: ["hunting_boost","mining_boost","woodcutting_boost","stonecarving_boost"].reduce(
           (investment, boost) => {
-            getRelicInvestment(returnedInfo.boosts[boost]) + investment
+            return getRelicInvestment(returnedInfo.boosts[boost]) + investment
           }, 0) + returnedInfo.currency.shattered_partner_relics,
         battleRelicBoost: ["critChance", "critDamage", "multistrike", "healing", "defense"].reduce(
           (investment, boost) => {
-            getRelicInvestment(returnedInfo.boosts[boost]) + investment
+            return getRelicInvestment(returnedInfo.boosts[boost]) + investment
           }, 0) + returnedInfo.currency.shattered_battling_relics,
         homestead: ['mine_level', 'farm_level', 'logging_level', 'fishing_level'].reduce(
           (investment, boost) => {
-            getHomesteadInvestment(returnedInfo.playerHomesteadData[boost]) + investment
+            return getHomesteadInvestment(returnedInfo.playerHomesteadData[boost]) + investment
           }, 0)
       }
-      record.total = { // Calculates sum of investment every time it's called
-        get gold() {
+      record.total = {
+        gold: 
           record.partner + getUnitInvestment(record.numPartners) + record.fighter + getUnitInvestment(record.numFighters) 
-          + record.pet + getUnitInvestment(record.numPets)
-        },
-        get resource() {
-          record.house + record.equipmentSlot + record.homestead
-        },
-        get relic() {
-          record.partnerRelicBoost + record.battleRelicBoost
-        },
-        get diamond() {
+          + record.pet + getUnitInvestment(record.numPets),
+        resource:
+          record.house + record.equipmentSlot + record.homestead,
+        relic:
+          record.partnerRelicBoost + record.battleRelicBoost,
+        diamond:
           record.cave
-        }
       }
       const newInvestment = new Investment(record)
       try {
@@ -152,7 +148,7 @@ export const getCaveInvestment = caves => {
   /**
    * returns the total number of diamonds invested in the cave
    */
-  const caveUpgrades = ['archaeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife']
+  const caveUpgrades = ['archeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife']
   return caveUpgrades.reduce(
     (diamonds, tool) => {
       return diamonds + caves[tool] * (caves[tool] + 1) / 2
@@ -180,11 +176,11 @@ export const getHouseInvestment = houseData => {
       }
       return total
     }, 0)
-  return houseInvestment * 4
+  return Math.round(houseInvestment * 4)
 }
 
-export const getPetInvestment = (investment, petInfo) => {
-  return investment + (petInfo.farm_strength*(petInfo.farm_strength + 1) / 2 + 
+export const getPetInvestment = petInfo => {
+  return (petInfo.farm_strength*(petInfo.farm_strength + 1) / 2 + 
     petInfo.farm_health * (petInfo.farm_health + 1) / 2 + 
     petInfo.farm_agility * (petInfo.farm_agility + 1) / 2 + 
     petInfo.farm_dexterity * (petInfo.farm_dexterity + 1) / 2) * 50000
@@ -197,11 +193,11 @@ export const getEquipmentSlotInvestment = eqSlots => {
     eqSlots.hands_level, eqSlots.legs_level, eqSlots.feet_level
   ]
 
-  return eqSlotLevels.reduce(
+  return Math.round(eqSlotLevels.reduce(
     (investment, level) => {
-      investment + 250 * ((1 - 1.1**level) / -0.1)
+      return investment + 250 * ((1 - 1.1**level) / -0.1)
     }
-  , 0)
+  , 0))
 }
 
 export const getRelicInvestment = level => {
@@ -234,7 +230,6 @@ export const getRelicInvestment = level => {
     //Past 10k, increment also starts to add in consecutive sums (n * (n+1) / 2)
     increment = (i - 7) * (i - 6) / 2 * 10 + 100
   }
-  
   return investment
 }
 
