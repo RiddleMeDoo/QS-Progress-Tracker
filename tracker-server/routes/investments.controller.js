@@ -3,17 +3,30 @@ import Player from '../models/player.model.js'
 import axios from 'axios'
 import startOfDay from 'date-fns/startOfDay/index.js'
 import endOfDay from 'date-fns/endOfDay/index.js'
+import subMonths from 'date-fns/subMonths/index.js'
 
 
 export const getInvestments = async (req, res) => {
+  console.log('GET allInvestments')
+  const playerId = req.params.playerId
+  //Limit results to most recent 3 months
+  const threeMonthsAgo = subMonths(new Date(), 3) 
+   
   try {
-    const investmentHistory = await Investment.find()
-    console.table(investmentHistory)
+    const investmentHistory = await Investment
+      .find({ playerId: playerId, timestamp: {$gte: threeMonthsAgo}})
+      .sort({timestamp: 1}).lean().exec()
+      .then(document => document)
 
-    res.status(200).json(investmentHistory)
+    //Send error for empty result
+    if((investmentHistory?.length ?? 0) < 1) {
+      res.status(404).json({error: `Player's records not found`})
+    } else {
+      res.status(200).json(investmentHistory)
+    }
   } catch (error) {
-    console.error(error)
-    res.status(404).json({error: error.message})
+    console.error('getInvestments ERROR:', error)
+    res.status(500).json({error: error.message})
   }
 }
 
