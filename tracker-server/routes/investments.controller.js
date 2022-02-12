@@ -26,12 +26,29 @@ export const getInvestments = async (req, res) => {
     }
   } catch (error) {
     console.error('getInvestments ERROR:', error)
-    res.status(500).json({error: error.message})
+    res.status(500).json({error: "Server Error"})
   }
 }
 
 export const getLatestInvestment = async (req, res) => {
-  res.status(500).json({error: 'Not implemented yet'})
+  console.log('GET latestInvestment')
+  const playerId = req.params.playerId
+
+  try {
+    const investmentHistory = await Investment
+      .findOne({ playerId: playerId}).sort({timestamp: -1}).lean().exec()
+      .then(document => document)
+
+    //Send error for empty result
+    if(!investmentHistory) {
+      res.status(404).json({error: `Player's records not found`})
+    } else {
+      res.status(200).json(investmentHistory)
+    }
+  } catch (error) {
+    console.error('getLatestInvestment ERROR:', error)
+    res.status(500).json({error: "Server Error"})
+  }
 }
 
 export const createInvestment = async (req, res) => {

@@ -17,4 +17,5 @@ POST / => Given a player's API key in the request body, create a new investment 
 
 Root: /api/player/
 
-POST /add => Given a player's API key in the request body, create a new player in the database.
+POST /add => Given a player's API key in the request body, create a new player in the database.  
+ Eg. {APIKey: r4tu89nvkfs940t}
