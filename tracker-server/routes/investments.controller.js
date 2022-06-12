@@ -178,7 +178,7 @@ export const getCaveInvestment = caves => {
   /**
    * returns the total number of diamonds invested in the cave
    */
-  const caveUpgrades = ['archeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife']
+  const caveUpgrades = ['archeology', 'brush', 'trowel', 'map', 'backpack', 'torch', 'scouting', 'spade', 'knife', 'compass']
   return caveUpgrades.reduce(
     (diamonds, tool) => {
       return diamonds + caves[tool] * (caves[tool] + 1) / 2
